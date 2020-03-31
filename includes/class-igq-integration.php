@@ -95,6 +95,7 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 
 		// Net Rate Addition
         add_filter( 'affwp_get_affiliate_rate_types', array($this, 'add_net_rate_type') );
+        add_filter( 'affwp_calc_referral_amount', array($this, 'affwp_calc_referral_amount_net'), 11, 5 );
 	}
 
 	/**
@@ -1469,6 +1470,35 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
         return $rates;
     }
 
+    /**
+     * Adding Referral Amount logic for the Net contributors and products.
+     *
+     * @param $referral_amount
+     * @param $affiliate_id
+     * @param $amount
+     * @param $reference
+     * @param $product_id
+     *
+     * @return int|string
+     */
+    public function affwp_calc_referral_amount_net($referral_amount, $affiliate_id, $amount, $reference, $product_id) {
+	    $affiliate_rate_type = affwp_get_affiliate_rate_type( $affiliate_id );
+        $product_rate_type = get_post_meta( $product_id, '_affwp_' . $this->context . '_product_rate_type', true );
+
+        // For Net affiliates/products, the referral amount will be the amount spent on the product
+        // minus the cost of the product.
+        if ($affiliate_rate_type === 'net' || $product_rate_type === 'net') {
+
+            $cost = $type = get_post_meta( $product_id, 'igq_product_cost_field', true );
+            if (!is_numeric($cost) || $cost <= 0) {
+                $cost = 16; // Hardcoded Default safety net.
+            }
+
+            $referral_amount = $amount - $cost;
+        }
+
+        return $referral_amount;
+    }
 }
 
 if ( class_exists( 'WooCommerce' ) ) {
