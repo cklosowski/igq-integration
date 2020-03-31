@@ -93,6 +93,8 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 		add_filter( 'woocommerce_admin_order_preview_get_order_details', array( $this, 'order_preview_get_referral' ), 10, 2 );
 		add_action( 'woocommerce_admin_order_preview_end', array( $this, 'render_order_preview_referral' ) );
 
+		// Net Rate Addition
+        add_filter( 'affwp_get_affiliate_rate_types', array($this, 'add_net_rate_type') );
 	}
 
 	/**
@@ -1436,6 +1438,19 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 	public function allow_self_referrals( $valid, $affiliate_id ) {
 		return true;
 	}
+
+
+    /**
+     * Add this values for the 'New Rate' of referral pay.
+     *
+     * @param array $rates
+     *
+     * @return array
+     */
+	public function add_net_rate_type(array $rates ) {
+        $rates['net'] = sprintf( __( 'Net %s', 'affiliate-wp' ), affwp_get_currency() );
+        return $rates;
+    }
 
 }
 
