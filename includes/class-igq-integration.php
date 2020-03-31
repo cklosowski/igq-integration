@@ -1423,6 +1423,19 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 				?>
 
 			</div>
+            <div>
+                <?php
+                woocommerce_wp_text_input(
+                    array(
+                        'id'          => 'igq_product_cost_field',
+                        'label'       => __( 'Net Subtraction', 'woocommerce' ),
+                        'desc_tip'    => 'true',
+                        'description' => __( 'Enter the cost of the product here.', 'woocommerce' ),
+                        'data_type' => 'price',
+                    )
+                );
+                ?>
+            </div>
 		</div>
 		<?php
 	}
@@ -1433,6 +1446,10 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 		} else {
 			update_post_meta( $post_id, 'igq_assigned_affiliate', absint( $_POST['igq_assigned_affiliate'] ) );
 		}
+
+		if (isset($_POST['igq_product_cost_field'])) {
+		    update_post_meta($post_id, 'igq_product_cost_field', $_POST['igq_product_cost_field']);
+        }
 	}
 
 	public function allow_self_referrals( $valid, $affiliate_id ) {
