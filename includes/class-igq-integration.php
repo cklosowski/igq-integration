@@ -1517,18 +1517,8 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
             }
 
             $quantity = $this->igq_item_quantities[$product_id];
-
-            $this->order->add_order_note(
-                json_encode([
-                   "amount" => $amount,
-                   "cost" => $cost,
-                   "quantity" => $quantity,
-                ])
-            );
-
             $referral_amount = $amount - ($cost * $quantity);
-
-
+            
             $this->order->add_order_note( sprintf( __( 'Net Referral Calculation: Amount (%1$s) - Cost (%2$s) * Quantity (%3$s) = Referral Amount (%4$d).', 'affiliate-wp' ),
                 $amount,
                 (string) $cost,
