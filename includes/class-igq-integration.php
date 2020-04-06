@@ -1508,9 +1508,14 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
                 foreach ( $items as $key => $value) {
                     if ($value instanceof WC_Order_Item_Product) {
                         $product = $value->get_product();
-                        $product_id = $product->get_id();
+						$quantity_product_id = intval( $product->get_product_id() );
 
-                        $item_qnty[$product_id] = $value->get_quantity();
+						if ( empty( $item_qnty[$quantity_product_id] ) ) {
+							$item_qnty[ $quantity_product_id ] = $value->get_quantity();
+						} else {
+							$item_qnty[ $quantity_product_id ] += $value->get_quantity();
+						}
+
                     }
                 }
 
