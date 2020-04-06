@@ -11,6 +11,12 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 	*/
 	private $order = false;
 
+
+    /**
+     * @var array
+     */
+	protected $igq_item_quantities = [];
+
 	/**
 	 * The context for referrals. This refers to the integration that is being used.
 	 *
@@ -1494,7 +1500,41 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
                 $cost = 16; // Hardcoded Default safety net.
             }
 
-            $referral_amount = $amount - $cost;
+            if (empty($this->igq_item_quantities)) {
+                $items = $this->order->get_items('line_item'); // Line Items?
+                $item_qnty = [];
+
+                foreach ( $items as $key => $value) {
+                    if (is_a($value, WC_Order_Item::class)) {
+                        $product = $value->get_product();
+                        $product_id = $product->get_id();
+
+
+                        $item_qnty[$product_id] = $value->get_quantity();
+                    }
+                }
+                $this->igq_item_quantities = $item_qnty;
+            }
+
+            $quantity = $this->igq_item_quantities[$product_id];
+
+            $this->order->add_order_note(
+                json_encode([
+                   "amount" => $amount,
+                   "cost" => $cost,
+                   "quantity" => $quantity,
+                ])
+            );
+
+            $referral_amount = $amount - ($cost * $quantity);
+
+
+            $this->order->add_order_note( sprintf( __( 'Net Referral Calculation: Amount (%1$s) - Cost (%2$s) * Quantity (%3$s) = Referral Amount (%4$d).', 'affiliate-wp' ),
+                $amount,
+                (string) $cost,
+                (string) $quantity,
+                $referral_amount
+            ) );
         }
 
         return $referral_amount;
