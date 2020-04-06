@@ -1497,11 +1497,12 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 
             $cost = $type = get_post_meta( $product_id, 'igq_product_cost_field', true );
             if (!is_numeric($cost) || $cost <= 0) {
-                $cost = 16; // Hardcoded Default safety net.
+                $cost = 13; // Hardcoded Default safety net.
             }
 
+            // Retrieve quantities of products for net calculation
             if (empty($this->igq_item_quantities)) {
-                $items = $this->order->get_items('line_item'); // Line Items?
+                $items = $this->order->get_items('line_item');
                 $item_qnty = [];
 
                 foreach ( $items as $key => $value) {
@@ -1509,16 +1510,22 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
                         $product = $value->get_product();
                         $product_id = $product->get_id();
 
-
                         $item_qnty[$product_id] = $value->get_quantity();
                     }
                 }
+
                 $this->igq_item_quantities = $item_qnty;
             }
 
-            $quantity = $this->igq_item_quantities[$product_id];
+            // Set quantity to 1 by default and overwrite if exists.
+            $quantity = 1;
+            if (isset($this->igq_item_quantities[$product_id])) {
+                $quantity = $this->igq_item_quantities[$product_id];
+            }
+
+            // Calculate actual referral amount
             $referral_amount = $amount - ($cost * $quantity);
-            
+
             $this->order->add_order_note( sprintf( __( 'Net Referral Calculation: Amount (%1$s) - Cost (%2$s) * Quantity (%3$s) = Referral Amount (%4$d).', 'affiliate-wp' ),
                 $amount,
                 (string) $cost,
