@@ -206,12 +206,21 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 				$product_id_for_rate = $product['variation_id'];
 			}
 
-			$amount += $this->calculate_referral_amount( $product_total, $order_id, $product_id_for_rate, $affiliate_id );
+
+			if (empty($product['variation_id'])) {
+                $reference_product_id = $product_id_for_rate;
+            } else {
+                $reference_product_id = $product['variation_id'];
+            }
+
+			$reference_id = $order_id . '-' . $reference_product_id;
+
+            $amount += $this->calculate_referral_amount( $product_total, $reference_id, $product_id_for_rate, $affiliate_id );
 
 			// Insert a pending referral
 			$referral_id = $this->insert_pending_referral(
 				$amount,
-				$order_id . '-' . $product_id_for_rate,
+				$reference_id,
 				$product['name'],
 				array( $product ),
 				array(
@@ -1491,6 +1500,9 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 	    $affiliate_rate_type = affwp_get_affiliate_rate_type( $affiliate_id );
         $product_rate_type = get_post_meta( $product_id, '_affwp_' . $this->context . '_product_rate_type', true );
 
+        $ref_explode = explode('-', $reference);
+        $order_id = $ref_explode[0];
+
         // For Net affiliates/products, the referral amount will be the amount spent on the product
         // minus the cost of the product.
         if ($affiliate_rate_type === 'net' || $product_rate_type === 'net') {
@@ -1508,24 +1520,23 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
                 foreach ( $items as $key => $value) {
                     if ($value instanceof WC_Order_Item_Product) {
                         $product = $value->get_product();
-						$quantity_product_id = intval( $product->get_product_id() );
+						$quantity_product_id = intval( $product->get_id() );
+                        $qpi_index = $order_id . '-' . $quantity_product_id;
 
-						if ( empty( $item_qnty[$quantity_product_id] ) ) {
-							$item_qnty[ $quantity_product_id ] = $value->get_quantity();
+						if ( empty( $item_qnty[$qpi_index] ) ) {
+							$item_qnty[ $qpi_index ] = $value->get_quantity();
 						} else {
-							$item_qnty[ $quantity_product_id ] += $value->get_quantity();
+							$item_qnty[ $qpi_index ] += $value->get_quantity();
 						}
-
                     }
                 }
-
                 $this->igq_item_quantities = $item_qnty;
             }
 
             // Set quantity to 1 by default and overwrite if exists.
             $quantity = 1;
-            if (isset($this->igq_item_quantities[$product_id])) {
-                $quantity = $this->igq_item_quantities[$product_id];
+            if (isset($this->igq_item_quantities[$reference])) {
+                $quantity = $this->igq_item_quantities[$reference];
             }
 
             // Calculate actual referral amount
