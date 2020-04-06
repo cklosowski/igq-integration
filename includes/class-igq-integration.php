@@ -1506,7 +1506,7 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
                 $item_qnty = [];
 
                 foreach ( $items as $key => $value) {
-                    if (is_a($value, WC_Order_Item::class)) {
+                    if ($value instanceof WC_Order_Item_Product) {
                         $product = $value->get_product();
                         $product_id = $product->get_id();
 
