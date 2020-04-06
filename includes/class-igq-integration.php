@@ -11,6 +11,12 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 	*/
 	private $order = false;
 
+
+    /**
+     * @var array
+     */
+	protected $igq_item_quantities = [];
+
 	/**
 	 * The context for referrals. This refers to the integration that is being used.
 	 *
@@ -93,6 +99,9 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 		add_filter( 'woocommerce_admin_order_preview_get_order_details', array( $this, 'order_preview_get_referral' ), 10, 2 );
 		add_action( 'woocommerce_admin_order_preview_end', array( $this, 'render_order_preview_referral' ) );
 
+		// Net Rate Addition
+        add_filter( 'affwp_get_affiliate_rate_types', array($this, 'add_net_rate_type') );
+        add_filter( 'affwp_calc_referral_amount', array($this, 'affwp_calc_referral_amount_net'), 11, 5 );
 	}
 
 	/**
@@ -1421,6 +1430,19 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 				?>
 
 			</div>
+            <div>
+                <?php
+                woocommerce_wp_text_input(
+                    array(
+                        'id'          => 'igq_product_cost_field',
+                        'label'       => __( 'Net Subtraction', 'woocommerce' ),
+                        'desc_tip'    => 'true',
+                        'description' => __( 'Enter the cost of the product here.', 'woocommerce' ),
+                        'data_type' => 'price',
+                    )
+                );
+                ?>
+            </div>
 		</div>
 		<?php
 	}
@@ -1431,12 +1453,89 @@ class Affiliate_WP_IGQ extends Affiliate_WP_Base {
 		} else {
 			update_post_meta( $post_id, 'igq_assigned_affiliate', absint( $_POST['igq_assigned_affiliate'] ) );
 		}
+
+		if (isset($_POST['igq_product_cost_field'])) {
+		    update_post_meta($post_id, 'igq_product_cost_field', $_POST['igq_product_cost_field']);
+        }
 	}
 
 	public function allow_self_referrals( $valid, $affiliate_id ) {
 		return true;
 	}
 
+
+    /**
+     * Add this values for the 'New Rate' of referral pay.
+     *
+     * @param array $rates
+     *
+     * @return array
+     */
+	public function add_net_rate_type(array $rates ) {
+        $rates['net'] = sprintf( __( 'Net %s', 'affiliate-wp' ), affwp_get_currency() );
+        return $rates;
+    }
+
+    /**
+     * Adding Referral Amount logic for the Net contributors and products.
+     *
+     * @param $referral_amount
+     * @param $affiliate_id
+     * @param $amount
+     * @param $reference
+     * @param $product_id
+     *
+     * @return int|string
+     */
+    public function affwp_calc_referral_amount_net($referral_amount, $affiliate_id, $amount, $reference, $product_id) {
+	    $affiliate_rate_type = affwp_get_affiliate_rate_type( $affiliate_id );
+        $product_rate_type = get_post_meta( $product_id, '_affwp_' . $this->context . '_product_rate_type', true );
+
+        // For Net affiliates/products, the referral amount will be the amount spent on the product
+        // minus the cost of the product.
+        if ($affiliate_rate_type === 'net' || $product_rate_type === 'net') {
+
+            $cost = $type = get_post_meta( $product_id, 'igq_product_cost_field', true );
+            if (!is_numeric($cost) || $cost <= 0) {
+                $cost = 13; // Hardcoded Default safety net.
+            }
+
+            // Retrieve quantities of products for net calculation
+            if (empty($this->igq_item_quantities)) {
+                $items = $this->order->get_items('line_item');
+                $item_qnty = [];
+
+                foreach ( $items as $key => $value) {
+                    if ($value instanceof WC_Order_Item_Product) {
+                        $product = $value->get_product();
+                        $product_id = $product->get_id();
+
+                        $item_qnty[$product_id] = $value->get_quantity();
+                    }
+                }
+
+                $this->igq_item_quantities = $item_qnty;
+            }
+
+            // Set quantity to 1 by default and overwrite if exists.
+            $quantity = 1;
+            if (isset($this->igq_item_quantities[$product_id])) {
+                $quantity = $this->igq_item_quantities[$product_id];
+            }
+
+            // Calculate actual referral amount
+            $referral_amount = $amount - ($cost * $quantity);
+
+            $this->order->add_order_note( sprintf( __( 'Net Referral Calculation: Amount (%1$s) - Cost (%2$s) * Quantity (%3$s) = Referral Amount (%4$d).', 'affiliate-wp' ),
+                $amount,
+                (string) $cost,
+                (string) $quantity,
+                $referral_amount
+            ) );
+        }
+
+        return $referral_amount;
+    }
 }
 
 if ( class_exists( 'WooCommerce' ) ) {
